@@ -2,7 +2,7 @@ package repository
 
 import (
 	m "ExerciseTasks/internal/models"
-	"database/sql"	
+	"database/sql"
 )
 
 type statusRepository struct {
@@ -10,7 +10,21 @@ type statusRepository struct {
 }
 
 type StatusRepository interface {
+	GetStatus(id string) m.Status
 	ListStatus() ([]m.Status, error)
+}
+
+func (tr *statusRepository) GetStatus(id string) m.Status {
+	// close database
+	defer tr.db.Close()
+	var status m.Status
+	// create the select sql query
+	sqlStatement := `SELECT * FROM practices."StatusTask" WHERE "Id"=$1`
+	// execute the sql statement
+	rows := tr.db.QueryRow(sqlStatement, id)
+	err := rows.Scan(&status.Id, &status.Name)
+	CheckError(err)
+	return status
 }
 
 func (tr *statusRepository) ListStatus() ([]m.Status, error) {

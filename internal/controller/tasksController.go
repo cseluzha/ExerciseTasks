@@ -39,7 +39,7 @@ func NewTask(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
 	}
 	log.Printf("json %#v\n", string(jsonData))
-	return c.JSON(http.StatusOK, jsonData)
+	return c.JSON(http.StatusOK, string(jsonData))
 }
 
 func UpdateTask(c echo.Context) error {

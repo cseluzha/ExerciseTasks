@@ -1,11 +1,11 @@
 package repository
 
 import (
+	m "ExerciseTasks/internal/models"
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"time"
-	m "ExerciseTasks/internal/models"
 )
 
 type taskRepository struct {
@@ -22,14 +22,14 @@ type TasksRepository interface {
 func (tr *taskRepository) NewTask(task m.Task) string {
 	// close database
 	defer tr.db.Close()
-	insertStmt := `INSERT INTO  practices.Tasks (Id, Title, Description, CreatedOn) VALUES ($1, $2, $3, $4) RETURNING Id`
-	var id uuid.UUID
+	insertStmt := `INSERT INTO practices."Tasks" ("Id", "Title", "Description", "CreatedOn") VALUES ($1, $2, $3, $4) RETURNING "Id"`
+	var Id uuid.UUID
 
 	// Scan function will save the insert id in the id
-	err := tr.db.QueryRow(insertStmt, GenerateUUID(), task.Title, task.Description, time.Now()).Scan(&id)
+	err := tr.db.QueryRow(insertStmt, GenerateUUID(), task.Title, task.Description, time.Now()).Scan(&Id)
 	CheckError(err)
-	fmt.Printf("Inserted new task id %v\n", id)
-	return id.String()
+	fmt.Printf("Inserted new task id %v\n", Id)
+	return Id.String()
 }
 
 func (tr *taskRepository) UpdateTask(task m.Task) int64 {
@@ -37,7 +37,7 @@ func (tr *taskRepository) UpdateTask(task m.Task) int64 {
 	defer tr.db.Close()
 
 	// create the update sql query
-	updateStmt := `UPDATE  practices.Tasks SET Title=$2, Description=$3, UpdatedOn=$4  WHERE Id=$1`
+	updateStmt := `UPDATE practices."Tasks" SET Title=$2, Description=$3, UpdatedOn=$4  WHERE Id=$1`
 
 	// execute the sql statement
 	res, err := tr.db.Exec(updateStmt, task.Id, task.Title, task.Description, time.Now())
@@ -53,7 +53,7 @@ func (tr *taskRepository) DeleteTask(taskId string) int64 {
 	defer tr.db.Close()
 
 	// create the delete sql query
-	deleteStmt := `DELETE FROM practices.Tasks WHERE Id=$1`
+	deleteStmt := `DELETE FROM practices."Tasks" WHERE Id=$1`
 	// execute the sql statement
 	res, err := tr.db.Exec(deleteStmt, taskId)
 	CheckError(err)
@@ -71,22 +71,23 @@ func (tr *taskRepository) ListTasks() ([]m.Task, error) {
 	var tasks []m.Task
 
 	// create the select sql query
-	sqlStatement := `SELECT * FROM practices.Tasks WHERE Active=true`
+	sqlStatement := `SELECT * FROM practices."Tasks" WHERE "Active"=true`
 	// execute the sql statement
 	rows, err := tr.db.Query(sqlStatement)
 	CheckError(err)
 	// close the statement
 	defer rows.Close()
-
+	sr := NewStatusRepository()
 	// iterate over the rows
 	for rows.Next() {
 		var task m.Task
-
+		var statusId string = ""
 		// unmarshal the row object to user
-		err = rows.Scan(&task.Id, &task.Title, &task.Description, &task.Status, &task.CreatedOn, &task.UpdatedOn)
+		err = rows.Scan(&task.Id, &task.Title, &task.Description, &task.CreatedOn, &task.UpdatedOn, &statusId, &task.Active)
 
 		CheckError(err)
 		// append the user in the users slice
+		task.Status = sr.GetStatus(statusId)
 		tasks = append(tasks, task)
 	}
 	// return empty users on error
