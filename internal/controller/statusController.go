@@ -4,21 +4,18 @@ import (
 	"ExerciseTasks/internal/models"
 	r "ExerciseTasks/internal/repository"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
 func GetStatus(c echo.Context) error {
+	var response = models.ResponseStatusArray{}
 	s := r.NewStatusRepository()
 	status, _ := s.ListStatus()
-	var response = models.ResponseStatusArray{true, "", &status, make([]string, 0)}
-	jsonData, err := json.Marshal(response)
-	if err != nil {
-		log.Fatalf("Failed reading the request body %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
-	}
-	log.Printf("json %v\n", string(jsonData))
+	response.Success = true
+	response.Message = ""
+	response.Data = &status
+	jsonData, _ := json.Marshal(response)
 	return c.JSON(http.StatusOK, string(jsonData))
 }
