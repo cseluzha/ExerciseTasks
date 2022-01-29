@@ -4,11 +4,9 @@ import (
 	models "ExerciseTasks/internal/models"
 	repository "ExerciseTasks/internal/repository"
 	"encoding/json"
+	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
-
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 )
 
 func NewTask(c echo.Context) error {
@@ -20,26 +18,31 @@ func NewTask(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
 	}
 
-	var response = models.ResponseTasks{true, "", make([]models.Task, 1), make([]string, 0)}
+	var response = models.ResponseTask{true, "", nil, make([]string, 0)}
 
 	tr := repository.NewTaskRepository()
-	id := tr.NewTask(models.Task{
+	task = models.Task{
 		Id:          repository.GenerateUUID(),
 		Title:       task.Title,
 		Description: task.Description,
-	})
-	response.Data[0].Id = uuid.MustParse(id)
-	response.Data[0].Title = task.Title
-	response.Data[0].Description = task.Description
-
-	response.Message = "task created successfully"
-	jsonData, err := json.Marshal(response)
-	if err != nil {
-		log.Fatalf("Failed reading the request body %s", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
 	}
-	log.Printf("json %#v\n", string(jsonData))
-	return c.JSON(http.StatusOK, string(jsonData))
+	id := tr.NewTask(task)
+	if len(id) > 0 {
+		response.Data = &task
+
+		response.Message = "task created successfully"
+		jsonData, err := json.Marshal(response)
+		if err != nil {
+			log.Fatalf("Failed reading the request body %s", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+		}
+		log.Printf("json %#v\n", string(jsonData))
+		return c.JSON(http.StatusOK, string(jsonData))
+	}
+	response.Success = false
+	response.Message = "Task not created"
+	jsonData, err := json.Marshal(response)
+	return c.JSON(http.StatusNotModified, string(jsonData))
 }
 
 func UpdateTask(c echo.Context) error {
@@ -56,7 +59,7 @@ func UpdateTask(c echo.Context) error {
 		Description: task.Description,
 		Status:      task.Status,
 	})
-	var response = models.ResponseTasks{true, "Task updated", make([]models.Task, 0), make([]string, 0)}
+	var response = models.ResponseTasks{true, "Task updated", nil, make([]string, 0)}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		log.Fatalf("Failed reading the request body %s", err)
@@ -72,7 +75,7 @@ func DeleteTask(c echo.Context) error {
 	if dataType == "json" {
 		tr := repository.NewTaskRepository()
 		val := tr.DeleteTask(idtask)
-		var response = models.ResponseTasks{true, "Task deleted", make([]models.Task, 0), make([]string, 0)}
+		var response = models.ResponseTasks{true, "Task deleted", nil, make([]string, 0)}
 		jsonData, err := json.Marshal(response)
 		if err != nil {
 			log.Fatalf("Failed reading the request body %s", err)
@@ -90,7 +93,7 @@ func DeleteTask(c echo.Context) error {
 func GetTasks(c echo.Context) error {
 	tr := repository.NewTaskRepository()
 	tasks, _ := tr.ListTasks()
-	var response = models.ResponseTasks{true, "Tasks", tasks, make([]string, 0)}
+	var response = models.ResponseTasks{true, "Tasks", &tasks, make([]string, 0)}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		log.Fatalf("Failed reading the request body %s", err)
@@ -98,4 +101,54 @@ func GetTasks(c echo.Context) error {
 	}
 	log.Printf("json %v\n", string(jsonData))
 	return c.JSON(http.StatusOK, string(jsonData))
+}
+
+func FindTaskById(c echo.Context) error {
+	task := models.Task{}	
+	err := json.NewDecoder(c.Request().Body).Decode(&task)
+	if err != nil || len(task.Id) == 0{
+		errors := [1]string{err.Error()}
+		var response = models.ResponseTask{false, "Invalid parameters, IdTask should not be empty", nil, errors[:]}
+		jsonData, _ := json.Marshal(response)
+		return c.JSON(http.StatusBadRequest, string(jsonData))
+	}
+
+	tr := repository.NewTaskRepository()		
+	task, et := tr.FindTaskByID(task.Id.String())	
+	if et != nil {
+		errors := [1]string{et.Error()}
+		var response = models.ResponseTask{false, "Task no found", nil, errors[:]}
+		jsonData, _ := json.Marshal(response)
+		return c.JSON(http.StatusNotFound, string(jsonData))
+	}
+
+	var response = models.ResponseTask{true, "Task found", &task, make([]string, 0)}
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		log.Fatalf("Failed reading the request body %s", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
+	}	
+	return c.JSON(http.StatusOK, string(jsonData))
+}
+
+func FindTaskByTitle(c echo.Context) error {
+	task := models.Task{}	
+	err := json.NewDecoder(c.Request().Body).Decode(&task)
+	log.Printf("Title %v\n", task.Title)
+	if err != nil || len(task.Title) == 0 {
+		errors := [1]string{err.Error()}
+		var response = models.ResponseTasks{false, "Invalid parameters, Title should not be empty", nil, errors[:]}
+		jsonData, _ := json.Marshal(response)
+		return c.JSON(http.StatusBadRequest, string(jsonData))
+	}
+	tr := repository.NewTaskRepository()
+	tasks, _ := tr.FindTaskByTitle(task.Title)
+	if len(tasks) > 1 {
+		var response = models.ResponseTasks{true, "Tasks found with that title", &tasks, make([]string, 0)}
+		jsonData, _ := json.Marshal(response)
+		return c.JSON(http.StatusOK, string(jsonData))
+	}
+	var response = models.ResponseTasks{true, "No tasks found with that title", nil, make([]string, 0)}
+	jsonData, _ := json.Marshal(response)
+	return c.JSON(http.StatusNotFound, string(jsonData))
 }

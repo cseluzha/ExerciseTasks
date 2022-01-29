@@ -16,7 +16,7 @@ type StatusRepository interface {
 
 func (tr *statusRepository) GetStatus(id string) m.Status {
 	// close database
-	defer tr.db.Close()
+	//defer tr.db.Close()
 	var status m.Status
 	// create the select sql query
 	sqlStatement := `SELECT * FROM practices."StatusTask" WHERE "Id"=$1`

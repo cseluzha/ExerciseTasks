@@ -13,7 +13,7 @@ import (
 func GetStatus(c echo.Context) error {
 	s := r.NewStatusRepository()
 	status, _ := s.ListStatus()
-	var response = models.ResponseStatus{true, "", status, make([]string, 0)}
+	var response = models.ResponseStatusArray{true, "", &status, make([]string, 0)}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
 		log.Fatalf("Failed reading the request body %s", err)

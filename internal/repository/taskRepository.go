@@ -17,6 +17,8 @@ type TasksRepository interface {
 	UpdateTask(task m.Task) int64
 	DeleteTask(taskId string) int64
 	ListTasks() ([]m.Task, error)
+	FindTaskByID(taskId string) (m.Task, error)
+	FindTaskByTitle(title string) ([]m.Task, error)
 }
 
 func (tr *taskRepository) NewTask(task m.Task) string {
@@ -74,6 +76,52 @@ func (tr *taskRepository) ListTasks() ([]m.Task, error) {
 	sqlStatement := `SELECT * FROM practices."Tasks" WHERE "Active"=true`
 	// execute the sql statement
 	rows, err := tr.db.Query(sqlStatement)
+	CheckError(err)
+	// close the statement
+	defer rows.Close()
+	sr := NewStatusRepository()
+	// iterate over the rows
+	for rows.Next() {
+		var task m.Task
+		var statusId string = ""
+		// unmarshal the row object to user
+		err = rows.Scan(&task.Id, &task.Title, &task.Description, &task.CreatedOn, &task.UpdatedOn, &statusId, &task.Active)
+
+		CheckError(err)
+		// append the user in the users slice
+		task.Status = sr.GetStatus(statusId)
+		tasks = append(tasks, task)
+	}
+	// return empty users on error
+	return tasks, err
+}
+
+func (tr *taskRepository) FindTaskByID(taskId string) (m.Task, error) {
+	// close database
+	defer tr.db.Close()
+	var task m.Task
+	// create the select sql query
+	sqlStatement := `SELECT * FROM practices."Tasks" WHERE "Id"=$1 AND "Active"=true`
+	// execute the sql statement
+	var statusId string = ""
+	rows := tr.db.QueryRow(sqlStatement, taskId)
+	err := rows.Scan(&task.Id, &task.Title, &task.Description, &task.CreatedOn, &task.UpdatedOn, &statusId, &task.Active)
+	if err == nil {
+		sr := NewStatusRepository()
+		task.Status = sr.GetStatus(statusId)
+	}
+	return task, err
+}
+
+func (tr *taskRepository) FindTaskByTitle(title string) ([]m.Task, error) {
+	// close database
+	defer tr.db.Close()
+
+	var tasks []m.Task
+	// create the select sql query
+	sqlStatement := `SELECT * FROM practices."Tasks" WHERE  "Title" ILIKE  '%' || $1 || '%' AND "Active"=true;`
+	// execute the sql statement
+	rows, err := tr.db.Query(sqlStatement, &title)
 	CheckError(err)
 	// close the statement
 	defer rows.Close()
