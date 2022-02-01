@@ -13,7 +13,7 @@ func main() {
 	// Route / handler function
 	e.GET("/tasks", controller.GetTasks)
 	e.POST("/tasks", controller.NewTask)
-	e.PUT("/tasks/", controller.UpdateTask)
+	e.PUT("/tasks", controller.UpdateTask)
 	e.DELETE("/tasks/:id", controller.DeleteTask)
 	e.POST("/tasks/findById", controller.FindTaskById)
 	e.POST("/tasks/findByTitle", controller.FindTaskByTitle)

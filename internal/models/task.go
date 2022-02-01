@@ -12,6 +12,6 @@ type Task struct {
 	Description string      `json:"Description" db:"Description"`
 	CreatedOn   time.Time   `json:"CreatedOn" db:"CreatedOn"`
 	UpdatedOn   pq.NullTime `json:"UpdatedOn" db:"UpdatedOn"`
-	Status      Status      `json:"Status" db:"StatusId"`
+	Status      Status      `json:"Status,omitempty" db:"StatusId"`
 	Active      bool        `json:"Active"  db:"Active"`
 }

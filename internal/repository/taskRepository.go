@@ -4,8 +4,10 @@ import (
 	m "ExerciseTasks/internal/models"
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type taskRepository struct {
@@ -37,16 +39,87 @@ func (tr *taskRepository) NewTask(task m.Task) string {
 func (tr *taskRepository) UpdateTask(task m.Task) int64 {
 	// close database
 	defer tr.db.Close()
+	var updateStmt string = ""
+	var res sql.Result = nil
+	var err error = nil
+	var rowsAffected int64 = 0
 
-	// create the update sql query
-	updateStmt := `UPDATE practices."Tasks" SET Title=$2, Description=$3, UpdatedOn=$4  WHERE Id=$1`
+	if task.Title == "" && task.Description == "" && IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET  "StatusId"=$1, "UpdatedOn"=$2  WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Status.Id, time.Now())
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
 
-	// execute the sql statement
-	res, err := tr.db.Exec(updateStmt, task.Id, task.Title, task.Description, time.Now())
-	CheckError(err)
-	// check how many rows affected
-	rowsAffected, _ := res.RowsAffected()
-	fmt.Printf("Total rows/record affected %v", rowsAffected)
+	if task.Title == "" && task.Description != "" && !IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET  "Description"=$1, "UpdatedOn"=$2  WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Description, time.Now())
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
+
+	if task.Title == "" && task.Description != "" && IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET "Description"=$1, "UpdatedOn"=$2, "StatusId"=$3  WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Description, time.Now(), task.Status.Id)
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
+
+	if task.Title != "" && task.Description == "" && !IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET "Title"=$1, "UpdatedOn"=$2  WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Title, time.Now())
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
+
+	if task.Title != "" && task.Description == "" && IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET "Title"=$1, "UpdatedOn"=$2, "StatusId"=$3 WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Title, time.Now(), task.Status.Id)
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
+
+	if task.Title != "" && task.Description != "" && !IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET "Title"=$1, "UpdatedOn"=$2, "Description"=$3 WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Title, time.Now(), task.Description)
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}
+
+	if task.Title != "" && task.Description != "" && IsValidUUID(task.Status.Id.String()) {
+		updateStmt = `UPDATE "practices"."Tasks" SET "Title"=$1, "Description"=$2, "StatusId"=$3, "UpdatedOn"=$4  WHERE "Id"::text = '` + strings.ReplaceAll(task.Id.String(), "\n", "") + `'`
+		// execute the sql statement
+		res, err = tr.db.Exec(updateStmt, task.Title, task.Description, task.Status.Id, time.Now())
+		CheckError(err)
+		// check how many rows affected
+		rowsAffected, _ := res.RowsAffected()
+		fmt.Printf("Total rows/record affected %v", rowsAffected)
+		return rowsAffected
+	}	
 	return rowsAffected
 }
 
@@ -55,13 +128,14 @@ func (tr *taskRepository) DeleteTask(taskId string) int64 {
 	defer tr.db.Close()
 
 	// create the delete sql query
-	deleteStmt := `DELETE FROM practices."Tasks" WHERE Id=$1`
+	deleteStmt := `UPDATE "practices"."Tasks" SET "Active"=false, "UpdatedOn"=$1  WHERE "Id"::text = '` + strings.ReplaceAll(taskId, "\n", "") + `'`
+	fmt.Printf("deleteStmt: %v \n", deleteStmt)
 	// execute the sql statement
-	res, err := tr.db.Exec(deleteStmt, taskId)
+	res, err := tr.db.Exec(deleteStmt, time.Now())
 	CheckError(err)
 	// check how many rows affected
 	rowsAffected, _ := res.RowsAffected()
-	fmt.Printf("Total rows/record affected %v", rowsAffected)
+	fmt.Printf("Total rows/record affected %v\n", rowsAffected)
 
 	return rowsAffected
 }

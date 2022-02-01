@@ -4,9 +4,10 @@ import (
 	models "ExerciseTasks/internal/models"
 	repository "ExerciseTasks/internal/repository"
 	"encoding/json"
-	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
+
+	"github.com/labstack/echo/v4"
 )
 
 func NewTask(c echo.Context) error {
@@ -50,31 +51,36 @@ func UpdateTask(c echo.Context) error {
 	if err != nil {
 		log.Fatalf("Failed reading the request body %s", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error)
-	}
-	tr := repository.NewTaskRepository()
-	val := tr.UpdateTask(models.Task{
-		Id:          task.Id,
-		Title:       task.Title,
-		Description: task.Description,
-		Status:      task.Status,
-	})
-	if val >= 0 {
-		response.Success = true
-		response.Message = "Task updated"
+	}	
+	if repository.IsValidUUID(task.Id.String()) && (task.Title != "" || task.Description != "" || len(task.Status.Id) > 0) {
+		tr := repository.NewTaskRepository()
+		val := tr.UpdateTask(models.Task{
+			Id:          task.Id,
+			Title:       task.Title,
+			Description: task.Description,
+			Status:      task.Status,
+		})
+		if val >= 0 {
+			response.Success = true
+			response.Message = "Task updated"
+			jsonData, _ := json.Marshal(response)
+			return c.JSON(http.StatusOK, string(jsonData))
+		}
+		response.Success = false
+		response.Message = "Task cann't updated"
 		jsonData, _ := json.Marshal(response)
-		return c.JSON(http.StatusOK, string(jsonData))
+		return c.JSON(http.StatusNotModified, string(jsonData))
 	}
 	response.Success = false
-	response.Message = "Task cann't updated"
+	response.Message = "Task cann't updated, you need to send at least the Title, Description or Status, and the IdTask"
 	jsonData, _ := json.Marshal(response)
-	return c.JSON(http.StatusNotModified, string(jsonData))
+	return c.JSON(http.StatusBadRequest, string(jsonData))
 }
 
 func DeleteTask(c echo.Context) error {
 	var response = models.ResponseTasks{}
-	idtask := c.QueryParam("id")
-	dataType := c.Param("data")
-	if dataType == "json" {
+	idtask := c.Param("id")
+	if idtask != "" {
 		tr := repository.NewTaskRepository()
 		val := tr.DeleteTask(idtask)
 		if val >= 0 {
@@ -88,9 +94,10 @@ func DeleteTask(c echo.Context) error {
 		jsonData, _ := json.Marshal(response)
 		return c.JSON(http.StatusNotModified, string(jsonData))
 	} else {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Please specify the data",
-		})
+		response.Success = false
+		response.Message = "Please specify the data"
+		jsonData, _ := json.Marshal(response)
+		return c.JSON(http.StatusBadRequest, string(jsonData))
 	}
 }
 
