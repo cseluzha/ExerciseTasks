@@ -2,7 +2,6 @@ package main
 
 import (
 	"ExerciseTasks/internal/controller"
-
 	"github.com/labstack/echo/v4"
 )
 

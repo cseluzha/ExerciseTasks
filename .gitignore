@@ -16,5 +16,5 @@
 
 # Env Files
 .env
-.env.aws
-
+.env.local
+.env.development
